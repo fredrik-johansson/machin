@@ -71,6 +71,9 @@
    MACHIN_SET_EXTEND_FROM gives a lower bound (for the sparse Gaussian
    sets, small x can give large z = x + e as well).
 
+   The formula is also printed as Python data (in a comment, and
+   appended to the file MACHIN_SET_PY if set; see fprint_python).
+
    MACHIN_SET_SOURCE=text replaces the description of how the x were
    found in the table's comment (useful when regenerating a table from
    a saved list).
@@ -2027,6 +2030,69 @@ write_xv_file(const xval_t * v, slong n, const char * path)
     rename(tmp, path);      /* atomic: an interrupted run keeps the old file */
 }
 
+/* The same formula as Python data (also appended to the file
+   MACHIN_SET_PY if set):
+       atanh_<n>_P / atan_<n>_P   primes p_i, or Gaussian primes (a_i, b_i)
+       ..._X, ..._den, ..._C, ..._mu
+   with log(p_i) = (1/den) sum_j C[i][j] atanh(1/X[j]), resp.
+   atan(b_i/a_i) = (1/den) sum_j C[i][j] atan(1/X[j]), and
+   mu = sum_j 1/log10(X[j]) (Lehmer's measure). */
+static void
+fprint_python(FILE * f, int gaussian, slong NP, const xval_t * xs, const slong * sel,
+    const fmpz_t den, const fmpz_mat_t C, const slong * a_, const slong * b_,
+    const ulong * norms)
+{
+    char pre[32];
+    slong i, j, ind;
+    double mu = 0;
+    fmpz_t t;
+
+    snprintf(pre, sizeof(pre), "%s_%ld", gaussian ? "atan" : "atanh", NP);
+    fmpz_init(t);
+
+    fprintf(f, "%s_P = [", pre);
+    for (i = 0; i < NP; i++)
+    {
+        if (gaussian)
+            fprintf(f, "%s(%ld, %ld)", i ? ", " : "", a_[i], b_[i]);
+        else
+            fprintf(f, "%s%lu", i ? ", " : "", norms[i]);
+    }
+    fprintf(f, "]\n");
+
+    fprintf(f, "%s_X = [", pre);
+    for (j = 0; j < NP; j++)
+    {
+        fmpz_set_uiui(t, xs[sel[j]].hi, xs[sel[j]].lo);
+        if (j) fprintf(f, ", ");
+        fmpz_fprint(f, t);
+        mu += 1.0 / log10(xv_d(xs[sel[j]]));
+    }
+    fprintf(f, "]\n");
+
+    fprintf(f, "%s_den = ", pre);
+    fmpz_fprint(f, den);
+    fprintf(f, "\n");
+
+    fprintf(f, "%s_C = [", pre);
+    ind = (slong) strlen(pre) + 6;          /* align with "[[" */
+    for (i = 0; i < NP; i++)
+    {
+        if (i)
+            fprintf(f, ",\n%*s", (int) ind, "");
+        fprintf(f, "[");
+        for (j = 0; j < NP; j++)
+        {
+            if (j) fprintf(f, ", ");
+            fmpz_fprint(f, fmpz_mat_entry(C, i, j));
+        }
+        fprintf(f, "]");
+    }
+    fprintf(f, "]\n");
+    fprintf(f, "%s_mu = %.5f\n", pre, mu);
+    fmpz_clear(t);
+}
+
 int
 main(int argc, char ** argv)
 {
@@ -2484,6 +2550,19 @@ main(int argc, char ** argv)
                 else
                     snprintf(descr, sizeof(descr), "sieved up to %.3g", XMAX);
                 print_machin_table(gaussian, NP, xs, sel, den, C, descr);
+                printf("/* Python:\n");
+                fprint_python(stdout, gaussian, NP, xs, sel, den, C, a_, b_, norms);
+                printf("*/\n");
+                if (getenv("MACHIN_SET_PY") != NULL)
+                {
+                    FILE * f = fopen(getenv("MACHIN_SET_PY"), "a");
+                    if (f != NULL)
+                    {
+                        fprint_python(f, gaussian, NP, xs, sel, den, C, a_, b_, norms);
+                        fprintf(f, "\n");
+                        fclose(f);
+                    }
+                }
             }
             /* verify with arb */
             {

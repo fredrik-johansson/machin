@@ -365,6 +365,7 @@ expected.)
 |---|---|
 | `machin_set.c` | the program |
 | `machin_tab.c` | the tables in FLINT's `fixed/machin_tab.c` format (for $n$ = 4, 8, 12, 13, 16, 20, 24, 32, 40, 48 and 3, 4, 8, 12, 13, 16, 20, 24, 32, 40, 48) |
+| `machin_formulas.py` | all formulas of Tables 1 and 2 with their matrices, as Python data |
 
 ## Related work
 
