@@ -5,14 +5,14 @@ Developed using Claude Opus 5 and Fable 5.1.
 This repository contains `machin_set`, a program that finds simultaneous
 Machin-like formulas
 
-$$\log p_i = \sum_{j=1}^{n} m_{ij}\, 2\operatorname{atanh}(1/x_j), \qquad
-\operatorname{atan}(b_i/a_i) = \sum_{j=1}^{n} m_{ij} \operatorname{atan}(1/x_j),
+$$\log p_i = \sum_{j=1}^{n} m_{ij}\, 2\mathop{\text{atanh}}(1/x_j), \qquad
+\mathop{\text{atan}}(b_i/a_i) = \sum_{j=1}^{n} m_{ij} \mathop{\text{atan}}(1/x_j),
 \qquad m_{ij} \in \mathbb{Q},$$
 
 for the logarithms of the first $n$ primes $p_1, \ldots, p_n$, or for the
 irreducible angles of the first $n$ nonreal Gaussian primes
 $a_i + b_i i$, with integers $x_j$ as large as possible.  Such formulas are
-used to precompute the constants for multi-prime argument reduction in
+used to precompute the constants for Diophantine argument reduction in
 arbitrary-precision elementary functions [Joh22, HJ24], as implemented in
 [FLINT](https://flintlib.org).  The program prints the formulas as C tables
 in the format of FLINT's `fixed/machin_tab.c`, and verifies each one
@@ -30,7 +30,7 @@ without an asterisk are optimal in the sense explained in
 
 ### Table 1: logarithms
 
-$n$-term formulas $\{\operatorname{atanh}(1/x) : x \in X\}$ for $\log p$,
+$n$-term formulas $\{\mathop{\text{atanh}}(1/x) : x \in X\}$ for $\log p$,
 where $p$ runs over the first $n$ primes $P$.
 
 | n | P | X | μ(X) |
@@ -75,8 +75,8 @@ one of them exactly.  Rows 26–30 and 32 are new.
 
 ### Table 2: arctangents
 
-$n$-term formulas $\{\operatorname{atan}(1/x) : x \in X\}$ for the
-irreducible angles $\operatorname{atan}(b/a)$ of the first $n$ nonreal
+$n$-term formulas $\{\mathop{\text{atan}}(1/x) : x \in X\}$ for the
+irreducible angles $\mathop{\text{atan}}(b/a)$ of the first $n$ nonreal
 Gaussian primes $a + bi$ ($a \ge b > 0$, ordered by norm), whose norms
 $a^2 + b^2$ form $Q$.
 
@@ -124,20 +124,20 @@ exactly.  Rows 23–30 and 32 are new.
 
 ### Candidate arguments
 
-Since $2\operatorname{atanh}(1/x) = \log\frac{x+1}{x-1}$, a formula for
+Since $2\mathop{\text{atanh}}(1/x) = \log\frac{x+1}{x-1}$, a formula for
 $\log p_1, \ldots, \log p_n$ can only use arguments from
 
 $$Y_P = \{x \ge 2 : x^2 - 1 \text{ is } P\text{-smooth}\},$$
 
 and the exponent vector $e(x) = (v_{p}(x+1) - v_{p}(x-1))_{p \in P}$
-expresses $2\operatorname{atanh}(1/x)$ in terms of the $\log p$.
-Likewise $\operatorname{atan}(1/x) = \arg(x + i)$, so the arctangent
+expresses $2\mathop{\text{atanh}}(1/x)$ in terms of the $\log p$.
+Likewise $\\mathop{\text{atan}}(1/x) = \arg(x + i)$, so the arctangent
 formulas use
 
 $$Z_Q = \{x \ge 1 : x^2 + 1 \text{ is } Q\text{-smooth}\},$$
 
 and the factorization of $x + i$ into Gaussian primes (plus a unit, i.e. a
-multiple of $\pi/2$) expresses $\operatorname{atan}(1/x)$ in terms of the
+multiple of $\pi/2$) expresses $\mathop{\text{atan}}(1/x)$ in terms of the
 irreducible angles.  By Størmer's theorem [Stø97] both sets are finite.
 A set $X$ of $n$ candidates gives a formula exactly when the vectors
 $e(x)$, $x \in X$, are linearly independent; the matrix $M$ is then the
@@ -230,8 +230,8 @@ A logarithmic sieve over $x \le X_{\max} < 2^{62}$.
 
 For smooth $x < y$ with $d = y - x$ dividing $N(x) = x^2 \mp 1$, the
 subtraction formulas
-$\operatorname{atanh}(1/x) - \operatorname{atanh}(1/y) = \operatorname{atanh}(1/z)$
-and $\operatorname{atan}(1/x) - \operatorname{atan}(1/y) = \operatorname{atan}(1/z)$
+$\mathop{\text{atanh}}(1/x) - \mathop{\text{atanh}}(1/y) = \mathop{\text{atanh}}(1/z)$
+and $\mathop{\text{atan}}(1/x) - \mathop{\text{atan}}(1/y) = \mathop{\text{atan}}(1/z)$
 give a new smooth integer
 
 $$z = \frac{xy \mp 1}{y - x} = x + \frac{N(x)}{d}.$$
