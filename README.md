@@ -14,8 +14,8 @@ irreducible angles of the first $n$ nonreal Gaussian primes
 $a_i + b_i i$, with integers $x_j$ as large as possible.  Such formulas are
 used to precompute the constants for Diophantine argument reduction in
 arbitrary-precision elementary functions [Joh22, HJ24], as implemented in
-[FLINT](https://flintlib.org).  The program prints the formulas as C tables
-in the format of FLINT's `fixed/machin_tab.c`, and verifies each one
+[FLINT](https://flintlib.org).  The program prints each formula, including
+its coefficient matrix, in human-readable Python syntax, and verifies it
 numerically with Arb.
 
 The tables below extend Tables 1 and 2 of [Joh22] to $n = 32$ (optimal) and
@@ -187,7 +187,7 @@ $\mu$ only estimates the actual cost of binary splitting.
 `machin_set` collects candidates with one of the methods below, selects the
 greedy basis (independence is tested incrementally modulo a word-size prime
 and confirmed over $\mathbb{Z}$), inverts the exponent matrix with
-`fmpq_mat`, verifies every formula with Arb and prints the table.
+`fmpq_mat`, verifies every formula with Arb and prints it.
 Arguments up to $2^{126}$ are supported (two limbs; $x^2 \pm 1$ fits in
 four).
 
@@ -331,11 +331,31 @@ Environment variables:
 | `MACHIN_SET_EXTEND_MAXTAU=T` | skip elements with more than T divisor pairs (default 2e7) |
 | `MACHIN_SET_EXTEND_FROM=x` | also extend elements ≥ x (default: half the smallest selected x) |
 | `MACHIN_SET_EXTEND_DONE=file` | record of extended elements, reused across runs |
-| `MACHIN_SET_SOURCE=text` | description of the method in the table comment |
+| `MACHIN_SET_PY=file` | also append the formula to file (to collect several formulas) |
+| `MACHIN_SET_SOURCE=text` | description of the method in the comment line before the formula |
 
-The output is C source: a comment with the progress, then the table
-(`_x` as `X(low, high)` limb pairs, `_den`, `_cbits`, and the coefficient
-matrix bit-packed into `Z8`/`Z2` words), then `/* verification: ok */`.
+The output is valid Python: progress lines as comments, then the formula,
+then `# verification: ok`.  For example, `machin_set 0 4 pell` prints
+
+```python
+# Pell equations: 15 solved, all x up to 8.51e+37, 1 threads
+# 29 smooth x found; largest: 8749 4801 449 251 244
+# atanh_4: x^2 - 1 smooth, all x up to 8.51e+37 by Pell equations
+atanh_4_P = [2, 3, 5, 7]
+atanh_4_X = [251, 449, 4801, 8749]
+atanh_4_den = 1
+atanh_4_C = [[144, 54, -38, 62],
+             [228, 86, -60, 98],
+             [334, 126, -88, 144],
+             [404, 152, -106, 174]]
+atanh_4_mu = 1.31908
+# verification: ok
+```
+
+meaning $\log p_i = \frac{1}{\mathrm{den}} \sum_j C_{ij} \,\mathrm{atanh}(1/X_j)$.
+For arctangents, `atan_<n>_P` lists the Gaussian primes as pairs $(a, b)$
+(first $1 + i$, then the representatives with $0 < a < b$, ordered by norm),
+and $\mathrm{atan}(b_i/a_i) = \frac{1}{\mathrm{den}} \sum_j C_{ij} \,\mathrm{atan}(1/X_j)$.
 
 **Distributed Pell runs.**  The parts can be split over machines and merged
 with `load`:
@@ -357,14 +377,13 @@ expected.)
 |---|---|
 | `scripts/run48.sh` | heuristic search for $n = 48$, with sieving and seeds from smaller sets |
 | `scripts/run_logs_more.sh` | alternates extension stages until no new x appear; restartable, with a time limit |
-| `scripts/check_machin_tab.py` | decodes tables in `machin_tab.c` format and verifies every formula to 120 digits with mpmath |
+| `scripts/check_machin_formulas.py` | verifies formulas in this format (e.g. `machin_formulas.py`, or program output) to 100 digits with mpmath |
 
 **Files.**
 
 | File | Contents |
 |---|---|
 | `machin_set.c` | the program |
-| `machin_tab.c` | the tables in FLINT's `fixed/machin_tab.c` format (for $n$ = 4, 8, 12, 13, 16, 20, 24, 32, 40, 48 and 3, 4, 8, 12, 13, 16, 20, 24, 32, 40, 48) |
 | `machin_formulas.py` | all formulas of Tables 1 and 2 with their matrices, as Python data |
 
 ## Related work

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Verify machin_formulas.py: every formula to 100 digits, P, and mu.
-Usage: check_machin_formulas.py [machin_formulas.py [machin_tab.c]]
-With machin_tab.c, also checks that the tables there have the same X, den, C."""
+"""Verify formulas in machin_set's Python format (e.g. machin_formulas.py,
+or the output of machin_set): every relation to 100 digits, P, X and mu.
+Usage: check_machin_formulas.py [file ...]"""
 import sys, re, math
 from mpmath import mp, mpf, atanh, atan, log, inf
 from sympy import isprime, prime
 
 mp.dps = 130
-path = sys.argv[1] if len(sys.argv) > 1 else "machin_formulas.py"
 env = {}
-exec(open(path).read(), env)
+for path in (sys.argv[1:] or ["machin_formulas.py"]):
+    exec(open(path).read(), env)
 
 def gaussian_primes(n):
     out = [(1, 1)]
@@ -24,24 +24,6 @@ def gaussian_primes(n):
                 a += 1
         p += 4
     return out
-
-tabs = {}
-if len(sys.argv) > 2:
-    src = open(sys.argv[2]).read()
-    for name, n, xs, den, cbits, cdata in re.findall(
-            r'static const ulong ((?:log_atanh|atan)_(\d+))_x\[\] = \{(.*?)\};\s*'
-            r'static const ulong \1_den = (\d+);\s*#define \1_cbits (\d+)\s*'
-            r'static const ulong \1_c\[\] = \{(.*?)\};', src, re.S):
-        n, cbits = int(n), int(cbits)
-        X = [int(a) + (int(b) << 64) for a, b in re.findall(r'X\((\d+),\s*(\d+)\)', xs)]
-        words = [int(w, 16) for grp in re.findall(r'Z[28]\(([^)]*)\)', cdata) for w in grp.split(',')]
-        big = sum(w << (32 * i) for i, w in enumerate(words))
-        C = []
-        for k in range(n * n):
-            v = (big >> (k * cbits)) & ((1 << cbits) - 1)
-            C.append(v - (1 << cbits) if v >> (cbits - 1) else v)
-        key = ('atanh' if name.startswith('log') else 'atan') + '_%d' % n
-        tabs[key] = (X, int(den), [C[i * n:(i + 1) * n] for i in range(n)])
 
 count = 0
 for name in sorted({k[:k.rindex('_')] for k in env if re.match(r'atanh?_\d+_[A-Za-z]+$', k)},
@@ -60,7 +42,5 @@ for name in sorted({k[:k.rindex('_')] for k in env if re.match(r'atanh?_\d+_[A-Z
         assert err < mpf(10) ** -100, (name, i, err)
     m = sum(1 / math.log10(x) for x in X) if min(X) > 1 else float('inf')
     assert (m == mu) if math.isinf(m) else abs(m - mu) < 6e-6, (name, m, mu)
-    if name in tabs:
-        assert tabs[name] == (X, den, C), name + ' differs from machin_tab.c'
     count += 1
-print("%d formulas verified%s" % (count, (", %d compared with machin_tab.c" % len(tabs)) if tabs else ""))
+print("%d formulas verified" % count)

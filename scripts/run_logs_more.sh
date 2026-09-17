@@ -26,8 +26,8 @@ FROM_A=${FROM_A:-1e17}; TAU_A=${TAU_A:-1e9}
 SRC="sieve, seeds from smaller sets, combination rounds and extension"
 DEADLINE=$(( $(date +%s) + HOURS * 3600 ))
 
-minx() {    # smallest selected x of a table (from its last round line)
-    grep "^/\* round" "$1" 2>/dev/null | tail -1 | sed 's/.*selected x from \([0-9]*\).*/\1/'
+minx() {    # smallest selected x of a formula (from its last round line)
+    grep "^# round" "$1" 2>/dev/null | tail -1 | sed 's/.*selected x from \([0-9]*\).*/\1/'
 }
 bigger() {  # is decimal $1 > decimal $2 ?
     [ -z "$2" ] && return 0
@@ -56,7 +56,7 @@ for NP in $NPS; do
         [ -s start${NP}_c$c.txt ] || lines $cur > start${NP}_c$c.txt
         before=$(cat start${NP}_c$c.txt)
         for st in b a; do
-            tab=tab${NP}_c${c}${st}.c
+            tab=form${NP}_c${c}${st}.py
             [ -s $tab ] && grep -q "verification: ok" $tab && continue   # done earlier
             if [ $(date +%s) -ge $DEADLINE ]; then
                 echo "   time limit reached (rerun to continue)"; stop=1; break
@@ -75,11 +75,11 @@ for NP in $NPS; do
             fi
             m=$(minx $tab)
             echo "   cycle $c stage $st: $(( $(date +%s) - s )) s, $(lines $cur) x, min x $m"
-            if bigger "$m" "$(minx best${NP}_0.c)"; then cp $tab best${NP}_0.c; fi
+            if bigger "$m" "$(minx best${NP}_0.py)"; then cp $tab best${NP}_0.py; fi
         done
         [ $stop = 1 ] && break
         if [ $(lines $cur) -eq $before ]; then echo "   no new x in cycle $c: done"; break; fi
         c=$((c + 1))
     done
-    echo "== NP=$NP: best table best${NP}_0.c, min x $(minx best${NP}_0.c)"
+    echo "== NP=$NP: best formula best${NP}_0.py, min x $(minx best${NP}_0.py)"
 done

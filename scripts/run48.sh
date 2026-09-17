@@ -19,7 +19,7 @@ export FLINT_NUM_THREADS=${FLINT_NUM_THREADS:-8}
 SRC="sieve, seeds from smaller sets, combination rounds and extension"
 
 t() { s=$(date +%s); "$@"; echo "   [$(( $(date +%s) - s )) s] $*" >&2; }
-best() { grep "^/\* round" "$1" | tail -1 | sed 's/.*selected x from \([0-9]*\).*/\1/'; }
+best() { grep "^# round" "$1" | tail -1 | sed 's/.*selected x from \([0-9]*\).*/\1/'; }
 
 cat_existing() {   # cat the files that exist
     for f in "$@"; do [ -s "$f" ] && cat "$f"; done
@@ -37,21 +37,21 @@ cat_existing() {   # cat the files that exist
 
 # ---- 3. logarithms --------------------------------------------------------
 # a) rounds + extension of every element >= 1e17 (~7.5e9 tests, ~6 min)
-[ -s tab${NP}a_0.c ] || MACHIN_SET_SAVE=r${NP}a_0.txt MACHIN_SET_SOURCE="$SRC" \
+[ -s form${NP}a_0.py ] || MACHIN_SET_SAVE=r${NP}a_0.txt MACHIN_SET_SOURCE="$SRC" \
     MACHIN_SET_EXTEND=1000000 MACHIN_SET_EXTEND_MAXTAU=1e9 MACHIN_SET_EXTEND_FROM=1e17 \
-    t $MS 0 $NP load seed${NP}_0.txt 10 0 1 > tab${NP}a_0.c 2> log${NP}a_0.txt
+    t $MS 0 $NP load seed${NP}_0.txt 10 0 1 > form${NP}a_0.py 2> log${NP}a_0.txt
 # b) lower threshold, cheap elements only (small tau)
-[ -s tab${NP}b_0.c ] || MACHIN_SET_SAVE=r${NP}b_0.txt MACHIN_SET_SOURCE="$SRC" \
+[ -s form${NP}b_0.py ] || MACHIN_SET_SAVE=r${NP}b_0.txt MACHIN_SET_SOURCE="$SRC" \
     MACHIN_SET_EXTEND=1000000 MACHIN_SET_EXTEND_MAXTAU=2e6 MACHIN_SET_EXTEND_FROM=1e14 \
-    t $MS 0 $NP load r${NP}a_0.txt 10 0 1 > tab${NP}b_0.c 2> log${NP}b_0.txt
+    t $MS 0 $NP load r${NP}a_0.txt 10 0 1 > form${NP}b_0.py 2> log${NP}b_0.txt
 
 # ---- 4. arctangents -------------------------------------------------------
 # small x are cheap to extend here (small tau), so extend almost everything
-[ -s tab${NP}a_1.c ] || MACHIN_SET_SAVE=r${NP}a_1.txt MACHIN_SET_SOURCE="$SRC" \
+[ -s form${NP}a_1.py ] || MACHIN_SET_SAVE=r${NP}a_1.txt MACHIN_SET_SOURCE="$SRC" \
     MACHIN_SET_EXTEND=1000000 MACHIN_SET_EXTEND_MAXTAU=1e9 MACHIN_SET_EXTEND_FROM=1e6 \
-    t $MS 1 $NP load seed${NP}_1.txt 10 0 1 > tab${NP}a_1.c 2> log${NP}a_1.txt
+    t $MS 1 $NP load seed${NP}_1.txt 10 0 1 > form${NP}a_1.py 2> log${NP}a_1.txt
 
 # ---- summary --------------------------------------------------------------
-for f in tab${NP}a_0.c tab${NP}b_0.c tab${NP}a_1.c; do
+for f in form${NP}a_0.py form${NP}b_0.py form${NP}a_1.py; do
     [ -s $f ] && echo "$f: min x $(best $f), $(grep -c 'verification: ok' $f) verified"
 done

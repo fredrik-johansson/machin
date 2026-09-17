@@ -10,11 +10,11 @@
 */
 
 /* Machin-type sets for the logarithms of the first NP primes or for
-   the arguments of the first NP nonreal Gaussian primes, in the format
-   of the tables in fixed/machin_tab.c:
+   the arguments of the first NP nonreal Gaussian primes pi_i = a_i + b_i i
+   (1 + i, then the representatives with 0 < a < b, ordered by norm):
 
-       log p_i = (1/den) sum_j c[i][j] atanh(1/x_j),        gaussian = 0
-       arg pi_i = (1/den) sum_j c[i][j] atan(1/x_j),        gaussian = 1
+       log p_i = (1/den) sum_j C[i][j] atanh(1/x_j),        gaussian = 0
+       atan(b_i/a_i) = (1/den) sum_j C[i][j] atan(1/x_j),   gaussian = 1
 
    Logarithms: integers x with x^2 - 1 smooth over the primes
    (Luca-Najman's smooth neighbours), found by a segmented sieve on
@@ -32,12 +32,19 @@
 
    The NP largest x whose rows are independent are kept (greedy by
    decreasing x, which also maximizes the smallest x of the set), the
-   system is inverted with fmpq_mat, and the result printed as C source
-   ready to paste into fixed/machin_tab.c (arguments as X(low, high),
-   the coefficient matrix bit packed in Z8/Z2 words; see
-   print_machin_table), ending with a verification of every formula against
-   arb_log_ui / arb_atan. After the sieve, x is a two-limb value below
-   2^(2B-2) (B = FLINT_BITS).
+   system is inverted with fmpq_mat, and the formula is printed as
+   Python data (see fprint_python):
+
+       atanh_<NP>_P = [2, 3, ...]    or   atan_<NP>_P = [(1, 1), (1, 2), ...]
+       atanh_<NP>_X = [...]          the x_j, increasing
+       atanh_<NP>_den = ...
+       atanh_<NP>_C = [[...], ...]
+       atanh_<NP>_mu = ...           sum_j 1/log10(x_j) (Lehmer's measure)
+
+   preceded by progress lines and followed by a verification of every
+   formula against arb_log_ui / arb_atan, both as Python comments, so
+   that the whole output is valid Python. After the sieve, x is a
+   two-limb value below 2^(2B-2) (B = FLINT_BITS).
 
    Three ways to find the x:
 
@@ -59,7 +66,8 @@
    3. "pell" enumerates every smooth x <= ZMAX (default 2^(2B-2))
       exactly, by 2^NP Pell equations (see pell_enumerate); the result is
       the optimal set. About 1 microsecond per equation: NP = 24 in
-      ~15 s, 32 in ~1 core-hour, 40 in ~300 core-hours.
+      ~15 s, 30 in ~20 core-minutes, 32 in ~1.5 core-hours, 40 in ~370
+      core-hours.
 
    With MACHIN_SET_EXTEND=K in the environment, each round also extends
    the K largest not yet extended elements x: every split x^2 -+ 1 = d e
@@ -71,12 +79,10 @@
    MACHIN_SET_EXTEND_FROM gives a lower bound (for the sparse Gaussian
    sets, small x can give large z = x + e as well).
 
-   The formula is also printed as Python data (in a comment, and
-   appended to the file MACHIN_SET_PY if set; see fprint_python).
-
-   MACHIN_SET_SOURCE=text replaces the description of how the x were
-   found in the table's comment (useful when regenerating a table from
-   a saved list).
+   With MACHIN_SET_PY=file, the formula is also appended to file (to
+   collect several formulas). MACHIN_SET_SOURCE=text replaces the
+   description of how the x were found in the comment line before the
+   formula (useful when regenerating a formula from a saved list).
 
    With MACHIN_SET_EXTEND_DONE=file, the x already extended are read
    from file and the file is updated after every extension, so that
@@ -1851,139 +1857,6 @@ pell_enumerate(xval_t ** xs, slong * nx, slong * xalloc, int gaussian,
     return w.nequations;
 }
 
-/* ------------------------------------------------------------------ */
-/* Output in the format of fixed/machin_tab.c: the arguments as
-   X(low, high) 64-bit halves, and the coefficient matrix bit packed
-   (entry k = i NP + j at bit k cbits, cbits bits in two's complement,
-   cbits = 1 + the largest magnitude's bit length) as 32-bit words in
-   little-endian order, eight per Z8 line, the rest as Z2 pairs. */
-
-static void
-print_wrapped(const char * first, const char * rest, const char * text, int width)
-{
-    /* word-wrap text; lines start with first (then rest) */
-    const char * p = text;
-    const char * lead = first;
-    while (*p)
-    {
-        int len = (int) strlen(lead), n = 0, last = -1;
-        while (p[n] && len + n < width)
-        {
-            if (p[n] == ' ')
-                last = n;
-            n++;
-        }
-        if (p[n] && last > 0)
-            n = last;
-        printf("%s%.*s", lead, n, p);
-        p += n;
-        while (*p == ' ')
-            p++;
-        lead = rest;
-        if (*p)
-            printf("\n");
-    }
-}
-
-static void
-print_machin_table(int gaussian, slong NP, const xval_t * xs, const slong * sel,
-    const fmpz_t den, const fmpz_mat_t C, const char * descr)
-{
-    const char * nm = gaussian ? "atan" : "log_atanh";
-    char text[1024], item[128];
-    slong i, j, k, cbits, nbits, nwords, col;
-    ulong * words;
-    fmpz_t t;
-    double xmin = xv_d(xs[sel[0]]), xmax = xv_d(xs[sel[NP - 1]]);
-
-    /* sel is in increasing order here */
-    snprintf(text, sizeof(text),
-        "Machin-type set for the %s of the first %ld %s: "
-        "%s = (1/den) sum_j c[i][j] %s(1/x_j). Generated by "
-        "examples/machin_set (x^2 %s 1 smooth, %s); x from %.3g to %.3g. */",
-        gaussian ? "arguments" : "logarithms", NP,
-        gaussian ? "nonreal Gaussian primes" : "primes",
-        gaussian ? "arg(pi_i)" : "log(p_i)", gaussian ? "atan" : "atanh",
-        gaussian ? "+" : "-", descr, xmin, xmax);
-    print_wrapped("/* ", "   ", text, 75);
-    printf("\n");
-
-    /* arguments */
-    printf("static const ulong %s_%ld_x[] = {\n", nm, NP);
-    col = 0;
-    for (k = 0; k < NP; k++)
-    {
-        int len;
-        len = snprintf(item, sizeof(item), "X(%lu, %lu),", xs[sel[k]].lo, xs[sel[k]].hi);
-        if (col == 0)
-        {
-            printf("    %s", item);
-            col = 4 + len;
-        }
-        else if (col + 1 + len <= 75)
-        {
-            printf(" %s", item);
-            col += 1 + len;
-        }
-        else
-        {
-            printf("\n    %s", item);
-            col = 4 + len;
-        }
-    }
-    printf("\n};\n");
-
-    if (!fmpz_abs_fits_ui(den) || fmpz_sgn(den) <= 0)
-    {
-        printf("/* ERROR: den does not fit in a limb */\n");
-        flint_abort();
-    }
-    printf("static const ulong %s_%ld_den = ", nm, NP);
-    fmpz_print(den);
-    printf(";\n");
-
-    /* coefficients */
-    cbits = 0;
-    for (i = 0; i < NP; i++)
-        for (j = 0; j < NP; j++)
-            cbits = FLINT_MAX(cbits, (slong) fmpz_bits(fmpz_mat_entry(C, i, j)));
-    cbits += 1;
-    printf("#define %s_%ld_cbits %ld\n", nm, NP, cbits);
-
-    nbits = NP * NP * cbits;
-    nwords = 2 * ((nbits + 63) / 64);
-    words = flint_calloc(nwords, sizeof(ulong));    /* 32 bits each */
-    fmpz_init(t);
-    for (i = 0; i < NP; i++)
-        for (j = 0; j < NP; j++)
-        {
-            slong b, pos = (i * NP + j) * cbits;
-            fmpz_fdiv_r_2exp(t, fmpz_mat_entry(C, i, j), cbits);   /* two's complement */
-            for (b = 0; b < cbits; b++)
-                if (fmpz_tstbit(t, b))
-                    words[(pos + b) / 32] |= UWORD(1) << ((pos + b) % 32);
-        }
-    fmpz_clear(t);
-
-    printf("static const ulong %s_%ld_c[] = {\n", nm, NP);
-    for (k = 0; k + 8 <= nwords; k += 8)
-    {
-        printf("    Z8(");
-        for (i = 0; i < 8; i++)
-            printf("%s%08lx", i ? "," : "", words[k + i]);
-        printf(")\n");
-    }
-    if (k < nwords)
-    {
-        printf("   ");
-        for ( ; k < nwords; k += 2)
-            printf(" Z2(%08lx,%08lx),", words[k], words[k + 1]);
-        printf("\n");
-    }
-    printf("};\n");
-    flint_free(words);
-}
-
 /* x lists in decimal, one per line */
 static void
 read_xv_file(xval_t ** v, slong * n, slong * alloc, const char * path)
@@ -2214,11 +2087,11 @@ main(int argc, char ** argv)
     {
         slong neq = pell_enumerate(&xs, &nx, &xalloc, gaussian, NP, norms,
             pinv, plim, zmax_x, part, nparts);
-        printf("/* Pell equations: %ld solved, all x up to %.3g, %d threads",
+        printf("# Pell equations: %ld solved, all x up to %.3g, %d threads",
             neq, ZMAX, flint_get_num_threads());
         if (nparts > 1)
             printf(", part %ld of 0..%ld", part, nparts - 1);
-        printf(" */\n");
+        printf("\n");
     }
     else if (loadmode)
     {
@@ -2252,7 +2125,7 @@ main(int argc, char ** argv)
         fclose(f);
         fmpz_clear(t);
         nx = sort_unique(xs, nx);
-        printf("/* loaded %ld smooth x from %s (%ld entries skipped) */\n",
+        printf("# loaded %ld smooth x from %s (%ld entries skipped)\n",
             nx, loadfile, bad);
     }
     else
@@ -2339,7 +2212,7 @@ main(int argc, char ** argv)
                 }
             }
         }
-        printf("/* sieve: %ld prime-power roots, x up to %.3g, %d threads */\n", nent, XMAX, flint_get_num_threads());
+        printf("# sieve: %ld prime-power roots, x up to %.3g, %d threads\n", nent, XMAX, flint_get_num_threads());
         fflush(stdout);
 
         /* segmented sieve, one thread per segment (flint_parallel_do
@@ -2354,7 +2227,7 @@ main(int argc, char ** argv)
             pat = build_pattern(&P, ent, &nent, norms, NP);
             qsort(ent, nent, sizeof(sieve_entry), cmp_entry);
             for (nsmall = 0; nsmall < nent && ent[nsmall].mod < BLOCK; nsmall++) ;
-            printf("/* pattern period %lu, %ld scattered entries (%ld small) */\n", P, nent, nsmall);
+            printf("# pattern period %lu, %ld scattered entries (%ld small)\n", P, nent, nsmall);
 
             work.ent = ent; work.nent = nent; work.nsmall = nsmall;
             work.pat = pat; work.P = P;
@@ -2382,13 +2255,13 @@ main(int argc, char ** argv)
             flint_free(xs1);
         }
     }
-    printf("/* %ld smooth x found; largest: ", nx);
+    printf("# %ld smooth x found; largest: ", nx);
     for (i = nx - 1; i >= FLINT_MAX(nx - 5, 0); i--)
     {
         xv_print(xs[i]);
         printf(" ");
     }
-    printf("*/\n");
+    printf("\n");
     fflush(stdout);
 
     /* combination rounds */
@@ -2442,17 +2315,17 @@ main(int argc, char ** argv)
                 nadd += nadd2;
             }
             ns = select_rows(sel, rows, xs, nx, gaussian, NP, norms, pinv, plim, a_, b_, &ntried);
-            printf("/* round %ld: %ld new, %ld total; ", r + 1, nadd, nx);
+            printf("# round %ld: %ld new, %ld total; ", r + 1, nadd, nx);
             if (ns == NP)
             {
                 printf("selected x from ");
                 xv_print(xs[sel[NP - 1]]);
                 printf(" to ");
                 xv_print(xs[sel[0]]);
-                printf(" (%ld tried) */\n", ntried);
+                printf(" (%ld tried)\n", ntried);
             }
             else
-                printf("rank %ld */\n", ns);
+                printf("rank %ld\n", ns);
             fflush(stdout);
             if (nadd == 0)
                 break;
@@ -2485,7 +2358,7 @@ main(int argc, char ** argv)
             }
             fmpz_clear(t);
             fclose(f);
-            printf("/* %ld x saved to %s */\n", nx, getenv("MACHIN_SET_SAVE"));
+            printf("# %ld x saved to %s\n", nx, getenv("MACHIN_SET_SAVE"));
         }
     }
 
@@ -2497,7 +2370,7 @@ main(int argc, char ** argv)
         ns = select_rows(sel, rows, xs, nx, gaussian, NP, norms, pinv, plim, a_, b_, &ntried);
         if (ns < NP)
         {
-            printf("only rank %ld: need a larger XMAX\n", ns);
+            printf("# only rank %ld: not enough x for a complete set\n", ns);
             return 1;
         }
         /* rows in increasing x for the output */
@@ -2549,10 +2422,9 @@ main(int argc, char ** argv)
                     snprintf(descr, sizeof(descr), "sieved up to %.3g, %ld combination rounds", XMAX, ROUNDS);
                 else
                     snprintf(descr, sizeof(descr), "sieved up to %.3g", XMAX);
-                print_machin_table(gaussian, NP, xs, sel, den, C, descr);
-                printf("/* Python:\n");
+                printf("# %s_%ld: x^2 %s 1 smooth, %s\n", gaussian ? "atan" : "atanh", NP,
+                    gaussian ? "+" : "-", descr);
                 fprint_python(stdout, gaussian, NP, xs, sel, den, C, a_, b_, norms);
-                printf("*/\n");
                 if (getenv("MACHIN_SET_PY") != NULL)
                 {
                     FILE * f = fopen(getenv("MACHIN_SET_PY"), "a");
@@ -2584,10 +2456,10 @@ main(int argc, char ** argv)
                     }
                     else
                         arb_log_ui(r, norms[i], 300);
-                    if (!arb_overlaps(s, r)) { printf("/* VERIFY FAILED for prime %ld */\n", i); bad = 1; }
+                    if (!arb_overlaps(s, r)) { printf("# verification FAILED for prime %ld\n", i); bad = 1; }
                     fmpq_clear(fr);
                 }
-                printf("/* verification: %s */\n", bad ? "FAILED" : "ok");
+                printf("# verification: %s\n", bad ? "FAILED" : "ok");
             }
             fmpq_mat_clear(Q); fmpq_mat_clear(Qi); fmpz_mat_clear(C); fmpz_clear(den);
         }

@@ -10,9 +10,11 @@ machin_set: machin_set.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $< $(LDFLAGS) $(LDLIBS)
 
 check: machin_set
-	./machin_set 0 24 pell | tail -1
-	./machin_set 1 22 pell | tail -1
-	python3 scripts/check_machin_tab.py machin_tab.c
+	./machin_set 0 24 pell > check_24.py && tail -1 check_24.py
+	./machin_set 1 22 pell > check_22.py && tail -1 check_22.py
+	python3 -c "exec(open('check_24.py').read()); exec(open('check_22.py').read())"
+	rm -f check_24.py check_22.py
+	python3 scripts/check_machin_formulas.py machin_formulas.py
 
 clean:
 	rm -f machin_set
